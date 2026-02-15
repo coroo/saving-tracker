@@ -55,22 +55,23 @@ export function GoalFormDialog({
   const savedAmount = goal?.savedAmount ?? 0;
 
   useEffect(() => {
-    if (open) {
-      if (goal) {
-        setForm({
+    if (!open) return;
+    const nextForm = goal
+      ? {
           title: goal.title,
           icon: goal.icon?.includes(':') ? goal.icon : DEFAULT_GOAL_ICON,
           description: goal.description ?? '',
           currency: goal.currency,
           targetAmount: String(goal.targetAmount),
           deadline: goal.deadline ? dayjs(goal.deadline) : null,
-        });
-      } else {
-        setForm(defaultForm);
-      }
+        }
+      : defaultForm;
+    const id = requestAnimationFrame(() => {
+      setForm(nextForm);
       setErrors({});
-    }
-  }, [open, goal?.id]);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [open, goal]);
 
   const handleSubmit = () => {
     const title = form.title.trim();

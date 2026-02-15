@@ -7,17 +7,21 @@ import {
   TextField,
   Box,
   Typography,
+  ToggleButtonGroup,
+  ToggleButton,
 } from '@mui/material';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import RemoveCircleOutlineIcon from '@mui/icons-material/RemoveCircleOutline';
 import { useState, useEffect } from 'react';
 import { Icon } from '@iconify/react';
-import type { Goal } from '../types/goal';
+import type { Goal, SavingTransactionType } from '../types/goal';
 import { formatCurrency } from '../utils/currency';
 
 interface AddSavingDialogProps {
   open: boolean;
   goal: Goal | null;
   onClose: () => void;
-  onConfirm: (goalId: string, amount: number) => void;
+  onConfirm: (goalId: string, amount: number, type: SavingTransactionType) => void;
 }
 
 export function AddSavingDialog({
@@ -27,25 +31,43 @@ export function AddSavingDialog({
   onConfirm,
 }: AddSavingDialogProps) {
   const [amount, setAmount] = useState('');
+  const [type, setType] = useState<SavingTransactionType>('debit');
   const [error, setError] = useState('');
 
-  const maxAmount = goal ? goal.targetAmount - goal.savedAmount : 0;
+  const maxDebit = goal ? goal.targetAmount - goal.savedAmount : 0;
+  const maxCredit = goal ? goal.savedAmount : 0;
+  const maxAmount = type === 'debit' ? maxDebit : maxCredit;
 
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+    const id = requestAnimationFrame(() => {
+      setAmount('');
+      setType('debit');
+      setError('');
+    });
+    return () => cancelAnimationFrame(id);
+  }, [open, goal?.id]);
+
+  const handleTypeChange = (_: React.MouseEvent<HTMLElement>, newType: SavingTransactionType | null) => {
+    if (newType !== null) {
+      setType(newType);
       setAmount('');
       setError('');
     }
-  }, [open, goal?.id]);
+  };
 
   const handleChange = (value: string) => {
     setAmount(value);
     setError('');
     const num = parseFloat(value);
     if (value !== '' && (Number.isNaN(num) || num <= 0)) {
-      setError('Enter a valid positive amount');
+      setError('Masukkan jumlah yang valid (positif)');
     } else if (value !== '' && num > maxAmount) {
-      setError(`Cannot exceed remaining ${formatCurrency(maxAmount, goal?.currency ?? 'USD')}`);
+      setError(
+        type === 'debit'
+          ? `Maksimal sisa: ${formatCurrency(maxAmount, goal?.currency ?? 'USD')}`
+          : `Maksimal yang bisa dikurangi: ${formatCurrency(maxAmount, goal?.currency ?? 'USD')}`
+      );
     }
   };
 
@@ -53,22 +75,30 @@ export function AddSavingDialog({
     if (!goal) return;
     const num = parseFloat(amount);
     if (Number.isNaN(num) || num <= 0) {
-      setError('Enter a valid positive amount');
+      setError('Masukkan jumlah yang valid (positif)');
       return;
     }
     if (num > maxAmount) {
-      setError(`Cannot exceed remaining ${formatCurrency(maxAmount, goal.currency)}`);
+      setError(
+        type === 'debit'
+          ? `Maksimal: ${formatCurrency(maxAmount, goal.currency)}`
+          : `Maksimal: ${formatCurrency(maxAmount, goal.currency)}`
+      );
       return;
     }
-    onConfirm(goal.id, num);
+    onConfirm(goal.id, num, type);
     onClose();
   };
 
-  const isValid = amount !== '' && !Number.isNaN(parseFloat(amount)) && parseFloat(amount) > 0 && parseFloat(amount) <= maxAmount;
+  const isValid =
+    amount !== '' &&
+    !Number.isNaN(parseFloat(amount)) &&
+    parseFloat(amount) > 0 &&
+    parseFloat(amount) <= maxAmount;
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>Add Saving</DialogTitle>
+      <DialogTitle>{type === 'debit' ? 'Tambah' : 'Kurangi'} Tabungan</DialogTitle>
       <DialogContent>
         {goal && (
           <Box sx={{ pt: 0.5 }}>
@@ -84,30 +114,52 @@ export function AddSavingDialog({
                 {goal.title}
               </Typography>
             </Box>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Remaining: {formatCurrency(maxAmount, goal.currency)}
+
+            <ToggleButtonGroup
+              value={type}
+              exclusive
+              onChange={handleTypeChange}
+              fullWidth
+              sx={{ mb: 2 }}
+              size="small"
+            >
+              <ToggleButton value="debit" aria-label="Tambah (debit)">
+                <AddCircleOutlineIcon sx={{ mr: 0.5 }} fontSize="small" />
+                Tambah
+              </ToggleButton>
+              <ToggleButton value="credit" aria-label="Kurangi (credit)">
+                <RemoveCircleOutlineIcon sx={{ mr: 0.5 }} fontSize="small" />
+                Kurangi
+              </ToggleButton>
+            </ToggleButtonGroup>
+
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              {type === 'debit'
+                ? `Sisa menuju target: ${formatCurrency(maxDebit, goal.currency)}`
+                : `Tersimpan saat ini: ${formatCurrency(goal.savedAmount, goal.currency)}`}
             </Typography>
+
             <TextField
               autoFocus
               fullWidth
-              label="Amount"
+              label="Jumlah"
               type="number"
               inputProps={{ min: 0, max: maxAmount, step: 'any' }}
               value={amount}
               onChange={(e) => handleChange(e.target.value)}
               error={Boolean(error)}
               helperText={error}
-              placeholder={`0`}
+              placeholder="0"
             />
           </Box>
         )}
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
         <Button onClick={onClose} color="inherit">
-          Cancel
+          Batal
         </Button>
         <Button onClick={handleSubmit} variant="contained" disabled={!isValid}>
-          Add
+          {type === 'debit' ? 'Tambah' : 'Kurangi'}
         </Button>
       </DialogActions>
     </Dialog>

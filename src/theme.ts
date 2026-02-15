@@ -26,10 +26,28 @@ export function createAppTheme(mode: PaletteMode) {
     palette: {
       mode,
       primary: {
-        main: mode === 'dark' ? '#7C9CE0' : '#5B7BD6',
+        main: mode === 'dark' ? '#60A5FA' : '#2563EB',
+        light: mode === 'dark' ? '#93C5FD' : '#3B82F6',
+        dark: mode === 'dark' ? '#3B82F6' : '#1D4ED8',
       },
       secondary: {
-        main: mode === 'dark' ? '#A8D5BA' : '#6BBF7A',
+        main: mode === 'dark' ? '#34D399' : '#10B981',
+        light: mode === 'dark' ? '#6EE7B7' : '#34D399',
+      },
+      success: {
+        main: '#22C55E',
+        light: '#4ADE80',
+        dark: '#16A34A',
+      },
+      warning: {
+        main: '#F59E0B',
+        light: '#FBBF24',
+        dark: '#D97706',
+      },
+      error: {
+        main: '#EF4444',
+        light: '#F87171',
+        dark: '#DC2626',
       },
       background: {
         default: mode === 'dark' ? '#0F1419' : '#F5F6F8',
@@ -62,6 +80,13 @@ export function createAppTheme(mode: PaletteMode) {
           },
         },
       },
+      MuiButton: {
+        styleOverrides: {
+          contained: {
+            fontWeight: 600,
+          },
+        },
+      },
       MuiFab: {
         styleOverrides: {
           root: {
@@ -69,6 +94,13 @@ export function createAppTheme(mode: PaletteMode) {
               mode === 'dark'
                 ? '0 6px 20px rgba(0,0,0,0.4)'
                 : '0 6px 20px rgba(0,0,0,0.12)',
+          },
+        },
+      },
+      MuiLinearProgress: {
+        styleOverrides: {
+          bar: {
+            borderRadius: 4,
           },
         },
       },

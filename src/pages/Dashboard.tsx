@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -9,12 +9,23 @@ import {
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import SavingsOutlinedIcon from '@mui/icons-material/SavingsOutlined';
-import { GoalCard } from '../components/GoalCard';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableGoalCard } from '../components/SortableGoalCard';
 import { GoalFormDialog } from '../components/GoalFormDialog';
 import { AddSavingDialog } from '../components/AddSavingDialog';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { GoalHistoryDialog } from '../components/GoalHistoryDialog';
 import { useGoals } from '../hooks/useGoals';
-import { useSnackbar } from '../contexts/SnackbarContext';
+import { useSnackbar } from '../hooks/useSnackbar';
+import { APP_NAME } from '../constants/app';
 import type { Goal } from '../types/goal';
 
 export function Dashboard() {
@@ -26,12 +37,34 @@ export function Dashboard() {
     updateGoal,
     deleteGoal,
     addSaving,
+    moveGoalUp,
+    moveGoalDown,
+    reorderGoals,
   } = useGoals();
   const snackbar = useSnackbar();
+
+  const goalIds = useMemo(() => goals.map((g) => g.id), [goals]);
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { delay: 200, tolerance: 5 },
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = goalIds.indexOf(active.id as string);
+    const newIndex = goalIds.indexOf(over.id as string);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const newOrder = arrayMove(goalIds, oldIndex, newIndex);
+    reorderGoals(newOrder);
+    snackbar.showSuccess('Urutan diubah');
+  };
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<Goal | null>(null);
   const [addSavingGoal, setAddSavingGoal] = useState<Goal | null>(null);
+  const [historyGoal, setHistoryGoal] = useState<Goal | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Goal | null>(null);
 
   const handleOpenCreate = () => {
@@ -79,9 +112,9 @@ export function Dashboard() {
     setEditingGoal(null);
   };
 
-  const handleAddSavingConfirm = (goalId: string, amount: number) => {
-    const ok = addSaving(goalId, amount);
-    if (ok) snackbar.showSuccess('Saving added');
+  const handleAddSavingConfirm = (goalId: string, amount: number, type: 'debit' | 'credit') => {
+    const ok = addSaving(goalId, amount, type);
+    if (ok) snackbar.showSuccess(type === 'debit' ? 'Tabungan ditambah' : 'Tabungan dikurangi');
     setAddSavingGoal(null);
   };
 
@@ -121,11 +154,20 @@ export function Dashboard() {
       }}
     >
       <Box sx={{ p: 2, maxWidth: 1200, mx: 'auto', width: '100%' }}>
-        <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
-          Saving Goals
-        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+          <img
+            src="/assets/lexa_saving_nobg.png"
+            alt=""
+            width={36}
+            height={36}
+            style={{ display: 'block' }}
+          />
+          <Typography variant="h5" sx={{ fontWeight: 700 }}>
+            {APP_NAME}
+          </Typography>
+        </Box>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Track your progress toward what matters
+          Lacak tujuan menabung Anda
         </Typography>
 
         {empty ? (
@@ -144,10 +186,10 @@ export function Dashboard() {
               }}
             />
             <Typography variant="h6" color="text.secondary" gutterBottom>
-              No goals yet
+              Belum ada tujuan
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Create your first saving goal to start tracking your progress.
+              Buat tujuan menabung pertama Anda di {APP_NAME}.
             </Typography>
             <Fab
               color="primary"
@@ -159,18 +201,33 @@ export function Dashboard() {
             </Fab>
           </Box>
         ) : (
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <Grid container spacing={2}>
-            {goals.map((goal) => (
-              <Grid item key={goal.id} xs={12} sm={6} md={4}>
-                <GoalCard
-                  goal={goal}
-                  onEdit={handleOpenEdit}
-                  onDelete={handleDeleteClick}
-                  onAddSaving={setAddSavingGoal}
-                />
-              </Grid>
-            ))}
+            <SortableContext items={goalIds} strategy={verticalListSortingStrategy}>
+              {goals.map((goal, index) => (
+                <Grid item key={goal.id} xs={12} sm={6} md={4}>
+                  <SortableGoalCard
+                    goal={goal}
+                    index={index}
+                    totalCount={goals.length}
+                    onEdit={handleOpenEdit}
+                    onDelete={handleDeleteClick}
+                    onAddSaving={setAddSavingGoal}
+                    onMoveUp={(g) => {
+                      moveGoalUp(g.id);
+                      snackbar.showSuccess('Urutan diubah');
+                    }}
+                    onMoveDown={(g) => {
+                      moveGoalDown(g.id);
+                      snackbar.showSuccess('Urutan diubah');
+                    }}
+                    onShowHistory={setHistoryGoal}
+                  />
+                </Grid>
+              ))}
+            </SortableContext>
           </Grid>
+        </DndContext>
         )}
       </Box>
 
@@ -181,7 +238,7 @@ export function Dashboard() {
           onClick={handleOpenCreate}
           sx={{
             position: 'fixed',
-            bottom: 24,
+            bottom: 56,
             right: 24,
           }}
         >
@@ -204,6 +261,12 @@ export function Dashboard() {
         goal={addSavingGoal}
         onClose={() => setAddSavingGoal(null)}
         onConfirm={handleAddSavingConfirm}
+      />
+
+      <GoalHistoryDialog
+        open={historyGoal !== null}
+        goal={historyGoal}
+        onClose={() => setHistoryGoal(null)}
       />
 
       <ConfirmDialog

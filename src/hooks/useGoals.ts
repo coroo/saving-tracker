@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
-import type { Goal, GoalFormData } from '../types/goal';
+import { useState, useCallback } from 'react';
+import type { Goal, GoalFormData, SavingTransaction, SavingTransactionType } from '../types/goal';
 import { getGoals, saveGoals } from '../storage/goalStorage';
 
 function generateId(): string {
@@ -10,15 +10,16 @@ function now(): string {
   return new Date().toISOString();
 }
 
-export function useGoals() {
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [initialized, setInitialized] = useState(false);
+function loadGoals(): Goal[] {
+  return getGoals().map((g) => ({
+    ...g,
+    transactions: g.transactions ?? [],
+  }));
+}
 
-  useEffect(() => {
-    const stored = getGoals();
-    setGoals(stored);
-    setInitialized(true);
-  }, []);
+export function useGoals() {
+  const [goals, setGoals] = useState<Goal[]>(loadGoals);
+  const initialized = true;
 
   const persist = useCallback((next: Goal[]) => {
     setGoals(next);
@@ -38,6 +39,7 @@ export function useGoals() {
         deadline: data.deadline,
         createdAt: now(),
         updatedAt: now(),
+        transactions: [],
       };
       persist([...goals, newGoal]);
       return newGoal;
@@ -74,20 +76,69 @@ export function useGoals() {
   );
 
   const addSaving = useCallback(
-    (id: string, amount: number) => {
-      const goal = goals.find((g) => g.id === id);
-      if (!goal || amount <= 0) return false;
-      const newSaved = goal.savedAmount + amount;
-      if (newSaved > goal.targetAmount) return false;
-      updateGoal(id, { savedAmount: newSaved });
+    (id: string, amount: number, type: SavingTransactionType) => {
+      const index = goals.findIndex((g) => g.id === id);
+      if (index === -1 || amount <= 0) return false;
+      const goal = goals[index];
+      const transactions = goal.transactions ?? [];
+      const delta = type === 'debit' ? amount : -amount;
+      let newSaved = goal.savedAmount + delta;
+      if (type === 'debit' && newSaved > goal.targetAmount) return false;
+      if (type === 'credit' && newSaved < 0) return false;
+      newSaved = Math.max(0, Math.min(goal.targetAmount, newSaved));
+      const tx: SavingTransaction = {
+        id: generateId(),
+        amount,
+        type,
+        date: now(),
+      };
+      const next = [...goals];
+      next[index] = {
+        ...goal,
+        savedAmount: newSaved,
+        updatedAt: now(),
+        transactions: [...transactions, tx],
+      };
+      persist(next);
       return true;
     },
-    [goals, updateGoal]
+    [goals, persist]
   );
 
   const getGoalById = useCallback(
     (id: string): Goal | undefined => goals.find((g) => g.id === id),
     [goals]
+  );
+
+  const moveGoalUp = useCallback(
+    (id: string) => {
+      const index = goals.findIndex((g) => g.id === id);
+      if (index <= 0) return;
+      const next = [...goals];
+      [next[index - 1], next[index]] = [next[index], next[index - 1]];
+      persist(next);
+    },
+    [goals, persist]
+  );
+
+  const moveGoalDown = useCallback(
+    (id: string) => {
+      const index = goals.findIndex((g) => g.id === id);
+      if (index === -1 || index >= goals.length - 1) return;
+      const next = [...goals];
+      [next[index], next[index + 1]] = [next[index + 1], next[index]];
+      persist(next);
+    },
+    [goals, persist]
+  );
+
+  const reorderGoals = useCallback(
+    (orderedIds: string[]) => {
+      const orderMap = new Map(orderedIds.map((id, i) => [id, i]));
+      const next = [...goals].sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0));
+      persist(next);
+    },
+    [goals, persist]
   );
 
   return {
@@ -98,5 +149,8 @@ export function useGoals() {
     deleteGoal,
     addSaving,
     getGoalById,
+    moveGoalUp,
+    moveGoalDown,
+    reorderGoals,
   };
 }

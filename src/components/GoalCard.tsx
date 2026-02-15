@@ -7,19 +7,29 @@ import {
   Menu,
   MenuItem,
   Box,
+  Collapse,
 } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import { Icon } from '@iconify/react';
-import { useState } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import type { Goal } from '../types/goal';
 import { formatCurrency } from '../utils/currency';
 import { calculatePercentage } from '../utils/percentage';
 
+const LONG_PRESS_MS = 500;
+
 interface GoalCardProps {
   goal: Goal;
+  index: number;
+  totalCount: number;
   onEdit: (goal: Goal) => void;
   onDelete: (goal: Goal) => void;
   onAddSaving: (goal: Goal) => void;
+  onMoveUp: (goal: Goal) => void;
+  onMoveDown: (goal: Goal) => void;
+  onShowHistory: (goal: Goal) => void;
 }
 
 function progressColor(percent: number): 'error' | 'warning' | 'success' {
@@ -45,13 +55,79 @@ const cardSxDark = {
   },
 };
 
-export function GoalCard({ goal, onEdit, onDelete, onAddSaving }: GoalCardProps) {
+export function GoalCard({
+  goal,
+  index,
+  totalCount,
+  onEdit,
+  onDelete,
+  onAddSaving,
+  onMoveUp,
+  onMoveDown,
+  onShowHistory,
+}: GoalCardProps) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [showReorder, setShowReorder] = useState(false);
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cardRef = useRef<HTMLDivElement | null>(null);
+
   const open = Boolean(anchorEl);
+  const canMoveUp = index > 0;
+  const canMoveDown = index < totalCount - 1;
 
   const percent = calculatePercentage(goal.savedAmount, goal.targetAmount);
   const remaining = Math.max(0, goal.targetAmount - goal.savedAmount);
   const colorKey = progressColor(percent);
+
+  const clearLongPress = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  }, []);
+
+  const handlePointerDown = useCallback(() => {
+    clearLongPress();
+    longPressTimer.current = setTimeout(() => {
+      longPressTimer.current = null;
+      setShowReorder(true);
+    }, LONG_PRESS_MS);
+  }, [clearLongPress]);
+
+  const handlePointerUp = useCallback(() => {
+    clearLongPress();
+  }, [clearLongPress]);
+
+  const handlePointerLeave = useCallback(() => {
+    clearLongPress();
+  }, [clearLongPress]);
+
+  const handleMoveUp = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (canMoveUp) onMoveUp(goal);
+    setShowReorder(false);
+  };
+
+  const handleMoveDown = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (canMoveDown) onMoveDown(goal);
+    setShowReorder(false);
+  };
+
+  useEffect(() => {
+    if (!showReorder) return;
+    const close = (e: PointerEvent) => {
+      if (cardRef.current?.contains(e.target as Node)) return;
+      setShowReorder(false);
+    };
+    const t = setTimeout(() => {
+      document.addEventListener('pointerdown', close);
+    }, 100);
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener('pointerdown', close);
+    };
+  }, [showReorder]);
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     event.stopPropagation();
@@ -75,12 +151,22 @@ export function GoalCard({ goal, onEdit, onDelete, onAddSaving }: GoalCardProps)
     onAddSaving(goal);
   };
 
+  const handleShowHistory = () => {
+    handleMenuClose();
+    onShowHistory(goal);
+  };
+
   return (
     <Card
+      ref={cardRef}
       variant="outlined"
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePointerLeave}
       sx={[
         cardSx,
         (theme) => (theme.palette.mode === 'dark' ? cardSxDark : {}),
+        showReorder && { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 2 },
       ]}
     >
       <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
@@ -172,6 +258,42 @@ export function GoalCard({ goal, onEdit, onDelete, onAddSaving }: GoalCardProps)
         </Box>
       </CardContent>
 
+      <Collapse in={showReorder}>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 0.5,
+            py: 1,
+            px: 1.5,
+            borderTop: 1,
+            borderColor: 'divider',
+            bgcolor: 'action.hover',
+          }}
+        >
+          <IconButton
+            size="small"
+            onClick={handleMoveUp}
+            disabled={!canMoveUp}
+            aria-label="Pindah ke atas"
+          >
+            <ArrowUpwardIcon fontSize="small" />
+          </IconButton>
+          <Typography variant="caption" color="text.secondary">
+            Ubah urutan
+          </Typography>
+          <IconButton
+            size="small"
+            onClick={handleMoveDown}
+            disabled={!canMoveDown}
+            aria-label="Pindah ke bawah"
+          >
+            <ArrowDownwardIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      </Collapse>
+
       <Menu
         id="goal-menu"
         anchorEl={anchorEl}
@@ -180,10 +302,29 @@ export function GoalCard({ goal, onEdit, onDelete, onAddSaving }: GoalCardProps)
         MenuListProps={{ 'aria-labelledby': 'goal-menu' }}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        PaperProps={{ sx: { borderRadius: 2, minWidth: 160 } }}
+        PaperProps={{ sx: { borderRadius: 1, minWidth: 160 } }}
       >
         <MenuItem onClick={handleEdit}>Edit</MenuItem>
-        <MenuItem onClick={handleAddSaving}>Add Saving</MenuItem>
+        <MenuItem onClick={handleAddSaving}>Tambah/Kurangi Tabungan</MenuItem>
+        <MenuItem onClick={handleShowHistory}>Riwayat</MenuItem>
+        <MenuItem
+          onClick={() => {
+            handleMenuClose();
+            if (canMoveUp) onMoveUp(goal);
+          }}
+          disabled={!canMoveUp}
+        >
+          Pindah ke atas
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            handleMenuClose();
+            if (canMoveDown) onMoveDown(goal);
+          }}
+          disabled={!canMoveDown}
+        >
+          Pindah ke bawah
+        </MenuItem>
         <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
           Delete
         </MenuItem>
