@@ -97,7 +97,20 @@ export function AddSavingDialog({
     parseFloat(amount) <= maxAmount;
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="xs"
+      fullWidth
+      PaperProps={{
+        sx: {
+          alignSelf: 'flex-start',
+          mt: 2,
+          mb: 2,
+          maxHeight: 'calc(100vh - 32px)',
+        },
+      }}
+    >
       <DialogTitle>{type === 'debit' ? 'Tambah' : 'Kurangi'} Tabungan</DialogTitle>
       <DialogContent>
         {goal && (

@@ -67,8 +67,8 @@ function AppContent() {
             <Box
               sx={{
                 position: 'fixed',
-                top: 8,
-                right: 8,
+                top: 25,
+                right: 12,
                 zIndex: (t) => t.zIndex.appBar,
               }}
             >

@@ -209,7 +209,7 @@ export function GoalCard({
           </IconButton>
         </Box>
 
-        <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', mb: 0.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
           <Typography variant="caption" color="text.secondary">
             Target
           </Typography>

@@ -5,6 +5,7 @@ import {
   Fab,
   Skeleton,
   useTheme,
+  useMediaQuery,
   Grid,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
@@ -18,6 +19,7 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { GoalCard } from '../components/GoalCard';
 import { SortableGoalCard } from '../components/SortableGoalCard';
 import { GoalFormDialog } from '../components/GoalFormDialog';
 import { AddSavingDialog } from '../components/AddSavingDialog';
@@ -30,6 +32,7 @@ import type { Goal } from '../types/goal';
 
 export function Dashboard() {
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const {
     goals,
     initialized,
@@ -153,7 +156,7 @@ export function Dashboard() {
         bgcolor: 'background.default',
       }}
     >
-      <Box sx={{ p: 2, maxWidth: 1200, mx: 'auto', width: '100%' }}>
+      <Box sx={{ p: 2, mx: 'auto', width: '100%' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
           <img
             src="/assets/lexa_saving_nobg.png"
@@ -200,34 +203,58 @@ export function Dashboard() {
               <AddIcon />
             </Fab>
           </Box>
+        ) : isMobile ? (
+          <Grid container spacing={2}>
+            {goals.map((goal, index) => (
+              <Grid item key={goal.id} xs={12}>
+                <GoalCard
+                  goal={goal}
+                  index={index}
+                  totalCount={goals.length}
+                  onEdit={handleOpenEdit}
+                  onDelete={handleDeleteClick}
+                  onAddSaving={setAddSavingGoal}
+                  onMoveUp={(g) => {
+                    moveGoalUp(g.id);
+                    snackbar.showSuccess('Urutan diubah');
+                  }}
+                  onMoveDown={(g) => {
+                    moveGoalDown(g.id);
+                    snackbar.showSuccess('Urutan diubah');
+                  }}
+                  onShowHistory={setHistoryGoal}
+                />
+              </Grid>
+            ))}
+          </Grid>
         ) : (
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <Grid container spacing={2}>
-            <SortableContext items={goalIds} strategy={verticalListSortingStrategy}>
-              {goals.map((goal, index) => (
-                <Grid item key={goal.id} xs={12} sm={6} md={4}>
-                  <SortableGoalCard
-                    goal={goal}
-                    index={index}
-                    totalCount={goals.length}
-                    onEdit={handleOpenEdit}
-                    onDelete={handleDeleteClick}
-                    onAddSaving={setAddSavingGoal}
-                    onMoveUp={(g) => {
-                      moveGoalUp(g.id);
-                      snackbar.showSuccess('Urutan diubah');
-                    }}
-                    onMoveDown={(g) => {
-                      moveGoalDown(g.id);
-                      snackbar.showSuccess('Urutan diubah');
-                    }}
-                    onShowHistory={setHistoryGoal}
-                  />
-                </Grid>
-              ))}
-            </SortableContext>
-          </Grid>
-        </DndContext>
+            <Grid container spacing={2}>
+              <SortableContext items={goalIds} strategy={verticalListSortingStrategy}>
+                {goals.map((goal, index) => (
+                  <Grid item key={goal.id} xs={12} sm={6} md={4}>
+                    <SortableGoalCard
+                      goal={goal}
+                      index={index}
+                      totalCount={goals.length}
+                      onEdit={handleOpenEdit}
+                      onDelete={handleDeleteClick}
+                      onAddSaving={setAddSavingGoal}
+                      onMoveUp={(g) => {
+                        moveGoalUp(g.id);
+                        snackbar.showSuccess('Urutan diubah');
+                      }}
+                      onMoveDown={(g) => {
+                        moveGoalDown(g.id);
+                        snackbar.showSuccess('Urutan diubah');
+                      }}
+                      onShowHistory={setHistoryGoal}
+                    />
+                  </Grid>
+                ))}
+              </SortableContext>
+            </Grid>
+          </DndContext>
         )}
       </Box>
 
