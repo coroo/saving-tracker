@@ -1,4 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useContext, useCallback, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
   Typography,
@@ -7,8 +8,10 @@ import {
   useTheme,
   useMediaQuery,
   Grid,
+  CircularProgress,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import SavingsOutlinedIcon from '@mui/icons-material/SavingsOutlined';
 import {
   DndContext,
@@ -27,12 +30,16 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 import { GoalHistoryDialog } from '../components/GoalHistoryDialog';
 import { useGoals } from '../hooks/useGoals';
 import { useSnackbar } from '../hooks/useSnackbar';
+import { OpenAddGoalContext } from '../contexts/OpenAddGoalContext';
 import { APP_NAME } from '../constants/app';
 import type { Goal } from '../types/goal';
 
 export function Dashboard() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { register } = useContext(OpenAddGoalContext);
   const {
     goals,
     initialized,
@@ -43,8 +50,15 @@ export function Dashboard() {
     moveGoalUp,
     moveGoalDown,
     reorderGoals,
+    refresh,
   } = useGoals();
   const snackbar = useSnackbar();
+
+  const [pullDistance, setPullDistance] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const touchStartY = useRef(0);
+  const atTop = useRef(false);
+  const pullDistanceRef = useRef(0);
 
   const goalIds = useMemo(() => goals.map((g) => g.id), [goals]);
   const sensors = useSensors(
@@ -70,10 +84,73 @@ export function Dashboard() {
   const [historyGoal, setHistoryGoal] = useState<Goal | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Goal | null>(null);
 
-  const handleOpenCreate = () => {
+  const handleOpenCreate = useCallback(() => {
     setEditingGoal(null);
     setFormOpen(true);
-  };
+  }, []);
+
+  useEffect(() => {
+    return register(handleOpenCreate);
+  }, [register, handleOpenCreate]);
+
+  useEffect(() => {
+    if (!location.state?.openAddGoal) return;
+    navigate(location.pathname, { replace: true, state: {} });
+    const id = requestAnimationFrame(() => {
+      setEditingGoal(null);
+      setFormOpen(true);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [location.state, navigate, location.pathname]);
+
+  useEffect(() => {
+    if (!isMobile) return;
+
+    const PULL_RESISTANCE = 0.5;
+    const PULL_MAX = 100;
+    const PULL_THRESHOLD = 55;
+    const REFRESH_DURATION = 600;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      touchStartY.current = e.touches[0].clientY;
+      atTop.current = window.scrollY <= 8;
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!atTop.current) return;
+      const currentY = e.touches[0].clientY;
+      const delta = currentY - touchStartY.current;
+      if (delta <= 0) return;
+      e.preventDefault();
+      const distance = Math.min(delta * PULL_RESISTANCE, PULL_MAX);
+      pullDistanceRef.current = distance;
+      setPullDistance(distance);
+    };
+
+    const handleTouchEnd = () => {
+      const currentPull = pullDistanceRef.current;
+      pullDistanceRef.current = 0;
+      if (currentPull > PULL_THRESHOLD) {
+        setIsRefreshing(true);
+        setPullDistance(0);
+        refresh();
+        snackbar.showSuccess('Diperbarui');
+        setTimeout(() => setIsRefreshing(false), REFRESH_DURATION);
+      } else {
+        setPullDistance(0);
+      }
+    };
+
+    document.addEventListener('touchstart', handleTouchStart, { passive: true });
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+    return () => {
+      document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isMobile, refresh, snackbar]);
 
   const handleOpenEdit = (goal: Goal) => {
     setEditingGoal(goal);
@@ -151,6 +228,8 @@ export function Dashboard() {
 
   const empty = goals.length === 0;
 
+  const showPullIndicator = isMobile && (pullDistance > 0 || isRefreshing);
+
   return (
     <Box
       sx={{
@@ -159,6 +238,50 @@ export function Dashboard() {
         bgcolor: 'background.default',
       }}
     >
+      {isMobile && (
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 56,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 1,
+            bgcolor: 'background.paper',
+            borderBottom: 1,
+            borderColor: 'divider',
+            zIndex: (t) => t.zIndex.appBar - 2,
+            transition: 'transform 0.2s ease',
+            transform: showPullIndicator ? 'translateY(0)' : 'translateY(-100%)',
+          }}
+        >
+          {isRefreshing ? (
+            <>
+              <CircularProgress size={24} />
+              <Typography variant="body2" color="text.secondary">
+                Memperbarui…
+              </Typography>
+            </>
+          ) : (
+            <>
+              <RefreshIcon sx={{ color: 'primary.main', fontSize: 28 }} />
+              <Typography variant="body2" color="text.secondary">
+                {pullDistance >= 55 ? 'Lepas untuk refresh' : 'Tarik ke bawah untuk refresh'}
+              </Typography>
+            </>
+          )}
+        </Box>
+      )}
+
+      <Box
+        sx={{
+          transition: 'transform 0.15s ease-out',
+          transform: pullDistance > 0 ? `translateY(${Math.min(pullDistance * 0.3, 24)}px)` : 'none',
+        }}
+      >
       <Box sx={{ p: 2, mx: 'auto', width: '100%' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
           <img
@@ -260,8 +383,9 @@ export function Dashboard() {
           </DndContext>
         )}
       </Box>
+      </Box>
 
-      {!empty && (
+      {!empty && !isMobile && (
         <Fab
           color="primary"
           aria-label="Add goal"

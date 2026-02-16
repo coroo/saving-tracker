@@ -142,6 +142,10 @@ export function useGoals() {
     [goals, persist]
   );
 
+  const refresh = useCallback(() => {
+    setGoals(loadGoals());
+  }, []);
+
   return {
     goals,
     initialized,
@@ -153,5 +157,6 @@ export function useGoals() {
     moveGoalUp,
     moveGoalDown,
     reorderGoals,
+    refresh,
   };
 }

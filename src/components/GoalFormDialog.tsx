@@ -38,7 +38,7 @@ interface GoalFormDialogProps {
 const defaultForm = {
   title: '',
   icon: DEFAULT_GOAL_ICON,
-  iconColor: DEFAULT_ICON_COLOR,
+  iconColor: DEFAULT_ICON_COLOR as string,
   description: '',
   currency: 'USD',
   targetAmount: '',
