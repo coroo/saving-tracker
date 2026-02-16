@@ -83,6 +83,7 @@ export function Dashboard() {
   const handleFormSubmit = (data: {
     title: string;
     icon: string;
+    iconColor?: string;
     description?: string;
     currency: string;
     targetAmount: number;
@@ -93,6 +94,7 @@ export function Dashboard() {
       updateGoal(editingGoal.id, {
         title: data.title,
         icon: data.icon,
+        iconColor: data.iconColor,
         description: data.description,
         currency: data.currency,
         targetAmount: data.targetAmount,
@@ -104,6 +106,7 @@ export function Dashboard() {
       addGoal({
         title: data.title,
         icon: data.icon,
+        iconColor: data.iconColor,
         description: data.description,
         currency: data.currency,
         targetAmount: data.targetAmount,

@@ -177,7 +177,9 @@ export function GoalCard({
                 width: 40,
                 height: 40,
                 borderRadius: 2,
-                bgcolor: 'action.hover',
+                bgcolor: goal.iconColor
+                  ? `${goal.iconColor}20`
+                  : 'action.hover',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -185,7 +187,12 @@ export function GoalCard({
               }}
             >
               {goal.icon?.includes(':') ? (
-                <Icon icon={goal.icon} width={24} height={24} />
+                <Icon
+                  icon={goal.icon}
+                  width={24}
+                  height={24}
+                  style={goal.iconColor ? { color: goal.iconColor } : undefined}
+                />
               ) : (
                 <Typography component="span" sx={{ fontSize: '1.5rem', lineHeight: 1 }}>
                   {goal.icon || '🎯'}

@@ -116,13 +116,31 @@ export function AddSavingDialog({
         {goal && (
           <Box sx={{ pt: 0.5 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
-              {goal.icon?.includes(':') ? (
-                <Icon icon={goal.icon} width={22} height={22} />
-              ) : (
-                <Typography component="span" variant="body2" color="text.secondary">
-                  {goal.icon || '🎯'}
-                </Typography>
-              )}
+              <Box
+                sx={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 1.5,
+                  bgcolor: goal.iconColor ? `${goal.iconColor}20` : 'action.hover',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                {goal.icon?.includes(':') ? (
+                  <Icon
+                    icon={goal.icon}
+                    width={18}
+                    height={18}
+                    style={goal.iconColor ? { color: goal.iconColor } : undefined}
+                  />
+                ) : (
+                  <Typography component="span" variant="body2">
+                    {goal.icon || '🎯'}
+                  </Typography>
+                )}
+              </Box>
               <Typography variant="body2" color="text.secondary">
                 {goal.title}
               </Typography>

@@ -32,6 +32,7 @@ export function useGoals() {
         id: generateId(),
         title: data.title,
         icon: data.icon || '🎯',
+        iconColor: data.iconColor,
         currency: data.currency,
         targetAmount: data.targetAmount,
         savedAmount: data.savedAmount ?? 0,

@@ -16,6 +16,7 @@ import { useState, useEffect } from 'react';
 import type { Goal } from '../types/goal';
 import { CURRENCIES } from '../utils/currency';
 import { DEFAULT_GOAL_ICON } from '../data/iconCategories';
+import { DEFAULT_ICON_COLORS, DEFAULT_ICON_COLOR } from '../constants/app';
 import { IconPicker } from './IconPicker';
 
 interface GoalFormDialogProps {
@@ -25,6 +26,7 @@ interface GoalFormDialogProps {
   onSubmit: (data: {
     title: string;
     icon: string;
+    iconColor?: string;
     description?: string;
     currency: string;
     targetAmount: number;
@@ -36,6 +38,7 @@ interface GoalFormDialogProps {
 const defaultForm = {
   title: '',
   icon: DEFAULT_GOAL_ICON,
+  iconColor: DEFAULT_ICON_COLOR,
   description: '',
   currency: 'USD',
   targetAmount: '',
@@ -60,6 +63,7 @@ export function GoalFormDialog({
       ? {
           title: goal.title,
           icon: goal.icon?.includes(':') ? goal.icon : DEFAULT_GOAL_ICON,
+          iconColor: goal.iconColor ?? defaultForm.iconColor,
           description: goal.description ?? '',
           currency: goal.currency,
           targetAmount: String(goal.targetAmount),
@@ -91,6 +95,7 @@ export function GoalFormDialog({
     onSubmit({
       title,
       icon: form.icon || DEFAULT_GOAL_ICON,
+      iconColor: form.iconColor,
       description: form.description.trim() || undefined,
       currency: form.currency,
       targetAmount: targetNum,
@@ -110,6 +115,31 @@ export function GoalFormDialog({
             value={form.icon}
             onChange={(iconId) => setForm((f) => ({ ...f, icon: iconId }))}
           />
+          <Box>
+            <Box component="span" sx={{ display: 'block', fontSize: '0.75rem', color: 'text.secondary', mb: 0.5 }}>
+              Warna ikon
+            </Box>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75 }}>
+              {DEFAULT_ICON_COLORS.map((color) => (
+                <Box
+                  key={color}
+                  onClick={() => setForm((f) => ({ ...f, iconColor: color }))}
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    bgcolor: color,
+                    cursor: 'pointer',
+                    border: 2,
+                    borderColor: form.iconColor === color ? 'primary.main' : 'transparent',
+                    boxSizing: 'border-box',
+                    '&:hover': { opacity: 0.9 },
+                  }}
+                  aria-label={`Pilih warna ${color}`}
+                />
+              ))}
+            </Box>
+          </Box>
           <TextField
             label="Goal Title"
             required

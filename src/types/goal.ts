@@ -12,6 +12,7 @@ export interface Goal {
   id: string;
   title: string;
   icon: string;
+  iconColor?: string;
   currency: string;
   targetAmount: number;
   savedAmount: number;
